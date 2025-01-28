@@ -11,7 +11,7 @@ const PlayerInfo = ({ player }) => {
       <h2 className="text-xl font-semibold">{player.name}'s Turn</h2>
       <div className="my-2">
         {player.pieces.map((piece, idx) => (
-          <p key={idx} className="text-lg">Piece {idx + 1}: {piece[0]}, {piece[1]}</p>
+          <p key={idx} className="text-lg">Piece {idx + 1}: {Array.isArray(piece) ? `${piece[0]}, ${piece[1]}` : piece}</p>
         ))}
       </div>
     </motion.div>

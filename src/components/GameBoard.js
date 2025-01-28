@@ -22,7 +22,6 @@ const GameBoard = () => {
   const [diceRoll, setDiceRoll] = useState(null);
   const [isRolling, setIsRolling] = useState(false);
   const [selectedPieceIdx, setSelectedPieceIdx] = useState(null); // Track selected piece for movement
-  const [isPieceSelected, setIsPieceSelected] = useState(false); // Track if piece is selected for moving
 
   const player1Path = [
     [0, 3], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0],
@@ -40,17 +39,12 @@ const GameBoard = () => {
     [4, 2], [3, 2], [2, 2], [2, 3], [2, 4], [3, 4], [4, 4], [3, 3]
   ];
 
-  const getCellClasses = (x, y) => {
-    const safeSpaces =  [
-      [0, 3], 
-      [1, 1], [1, 5],
-      [2, 3],
-      [3, 0], [3, 2], [3, 4], [3, 6],
-      [4,3],
-      [5,1], [5,5],
-      [6, 3],
-    ];
+  const safeSpaces = [
+    [0, 3], [1, 1], [1, 5], [2, 3], [3, 0], [3, 2], [3, 4], [3, 6],
+    [4, 3], [5, 1], [5, 5], [6, 3]
+  ];
 
+  const getCellClasses = (x, y) => {
     return safeSpaces.some(([sx, sy]) => sx === x && sy === y)
       ? 'bg-green-400'
       : 'bg-gray-200';
@@ -93,7 +87,7 @@ const GameBoard = () => {
 
     setPlayers(updatedPlayers);
     setSelectedPieceIdx(pieceIdx); // Set the selected piece index
-    setIsPieceSelected(true); // Allow the player to choose which piece to move next
+    movePiece(); // Move the piece immediately after bringing it in
   };
 
   const movePiece = () => {
@@ -114,36 +108,45 @@ const GameBoard = () => {
     }
 
     const newPos = Math.min(currentPos + roll, path.length - 1);
-    const [newX, newY] = path[newPos];
 
-    // Check if the new position is occupied by an opponent's piece
-    const opponentIdx = (currentPlayerIdx + 1) % 2;
-    const opponentPiece = updatedPlayers[opponentIdx].pieces.find(p => p.x === newX && p.y === newY);
+    const moveStep = (step) => {
+      if (step > newPos) {
+        // Switch turn to the other player
+        setCurrentPlayerIdx((currentPlayerIdx + 1) % 2);
+        setDiceRoll(null); // Reset the dice roll after each turn
+        return;
+      }
 
-    if (opponentPiece) {
-      // Move the opponent's piece out of the board
-      opponentPiece.x = null;
-      opponentPiece.y = null;
-      opponentPiece.inPlay = false;
-    }
+      const [newX, newY] = path[step];
 
-    piece.x = newX;
-    piece.y = newY;
+      // Check if the new position is occupied by an opponent's piece
+      const opponentIdx = (currentPlayerIdx + 1) % 2;
+      const opponentPiece = updatedPlayers[opponentIdx].pieces.find(p => p.x === newX && p.y === newY);
 
-    setPlayers(updatedPlayers);
-    setIsPieceSelected(false); // Deselect after moving
-    setSelectedPieceIdx(null); // Reset selected piece index
+      if (opponentPiece && !safeSpaces.some(([sx, sy]) => sx === newX && sy === newY)) {
+        // Move the opponent's piece out of the board if it's not in a safe space
+        opponentPiece.x = null;
+        opponentPiece.y = null;
+        opponentPiece.inPlay = false;
+      }
 
-    // Switch turn to the other player
-    setCurrentPlayerIdx((currentPlayerIdx + 1) % 2);
-    setDiceRoll(null); // Reset the dice roll after each turn
+      piece.x = newX;
+      piece.y = newY;
+
+      setPlayers([...updatedPlayers]);
+
+      setTimeout(() => moveStep(step + 1), 300); // Move to the next step after a delay
+    };
+
+    moveStep(currentPos + 1);
   };
 
   const selectPiece = (pieceIdx) => {
     const currentPlayer = players[currentPlayerIdx];
     if (currentPlayer.pieces[pieceIdx].inPlay) {
       setSelectedPieceIdx(pieceIdx);
-      setIsPieceSelected(true);
+      setInterval(2000);
+      movePiece(); // Move the piece immediately after selecting it
     }
   };
 
@@ -163,7 +166,7 @@ const GameBoard = () => {
                 !piece.inPlay && (
                   <motion.div
                     key={idx}
-                    className={`w-8 h-8 rounded-full bg-${piece.color}-500 mx-1 flex items-center justify-center cursor-pointer ${currentPlayerIdx === playerIdx && diceRoll === 6 ? 'ring-4 ring-yellow-500' : ''}`}
+                    className={`w-8 h-8 rounded-full ${piece.color === 'red' ? 'bg-red-500' : 'bg-blue-500'} mx-1 flex items-center justify-center cursor-pointer ${currentPlayerIdx === playerIdx && diceRoll === 6 ? 'ring-4 ring-yellow-500' : ''}`}
                     onClick={() => currentPlayerIdx === playerIdx && diceRoll === 6 && bringPieceIn(idx)}
                     style={{ transform: diceRoll === 6 ? 'perspective(500px) rotateX(10deg) rotateY(10deg)' : 'none' }}
                   >
@@ -189,7 +192,7 @@ const GameBoard = () => {
                 >
                   {piece && (
                     <motion.div
-                      className={`absolute inset-0 m-auto w-8 h-8 rounded-full bg-${piece.color}-500 ${selectedPieceIdx === piece.id - 1 ? 'ring-4 ring-yellow-500' : ''}`}
+                      className={`absolute inset-0 m-auto w-8 h-8 rounded-full ${piece.color === 'red' ? 'bg-red-500' : 'bg-blue-500'} ${selectedPieceIdx === piece.id - 1 ? 'ring-4 ring-yellow-500' : ''}`}
                       onClick={() => selectPiece(piece.id - 1)}
                       style={{ transform: diceRoll === 6 ? 'perspective(500px) rotateX(10deg) rotateY(10deg)' : 'none' }}
                     >
@@ -226,18 +229,6 @@ const GameBoard = () => {
           </motion.div>
         </motion.div>
       </div>
-
-      {/* Move Selected Piece */}
-      {isPieceSelected && (
-        <div className="text-center">
-          <button
-            onClick={movePiece}
-            className="p-2 bg-green-500 text-white rounded"
-          >
-            Move Selected Piece
-          </button>
-        </div>
-      )}
     </div>
   );
 };
