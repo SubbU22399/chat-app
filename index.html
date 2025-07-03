@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0e2b">
+  <title>Galactic Tic-Tac-Toe: Cyber Edition</title>
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --secondary: #ec4899;
+      --accent: #34d399;
+      --glow: rgba(59, 130, 246, 0.5);
+    }
+    body {
+      background: linear-gradient(135deg, #0a0e2b, #4c1d95);
+      font-family: 'Inter', sans-serif;
+      cursor: none;
+      overflow: hidden;
+      transition: background 0.6s ease, font-size 0.3s ease;
+    }
+    .custom-cursor {
+      position: fixed;
+      width: 30px;
+      height: 30px;
+      background: radial-gradient(circle, var(--glow), transparent);
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px var(--glow);
+    }
+    body.light {
+      background: linear-gradient(135deg, #e0e7ff, #a5b4fc);
+    }
+    body.neon {
+      background: linear-gradient(135deg, #1e1b4b, #db2777);
+    }
+    body.high-contrast {
+      background: #000;
+      color: #fff;
+    }
+    .cell {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(18px);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+      transform: perspective(1000px) rotateX(0) rotateY(0);
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    .cell:hover {
+      transform: perspective(1000px) translateZ(25px);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(236, 72, 153, 0.5));
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    }
+    .cell:active::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 120%;
+      height: 120%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.4), transparent);
+      transform: translate(-50%, -50%) scale(0);
+      animation: ripple 0.5s ease-out;
+    }
+    @keyframes ripple {
+      to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+    }
+    .cell:focus {
+      outline: 3px solid var(--primary);
+      outline-offset: 3px;
+    }
+    .x-symbol svg {
+      fill: var(--primary);
+      animation: bounceIn 0.5s ease;
+    }
+    .o-symbol svg {
+      fill: var(--secondary);
+      animation: bounceIn 0.5s ease;
+    }
+    @keyframes bounceIn {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.5); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .glow {
+      box-shadow: 0 0 35px var(--accent);
+      animation: pulse 0.6s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 35px var(--accent); }
+      50% { box-shadow: 0 0 50px var(--accent); }
+      100% { box-shadow: 0 0 35px var(--accent); }
+    }
+    .turn-indicator {
+      transition: transform 0.6s ease, color 0.6s ease, text-shadow 0.6s ease;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 15px var(--glow);
+    }
+    .turn-x { transform: translateX(-25px); color: var(--primary); }
+    .turn-o { transform: translateX(25px); color: var(--secondary); }
+    .modal {
+      background: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(25px);
+      animation: morphIn 0.7s ease;
+    }
+    @keyframes morphIn {
+      from { opacity: 0; transform: scale(0.5) rotate(5deg); }
+      to { opacity: 1; transform: scale(1) rotate(0); }
+    }
+    .shake {
+      animation: shake 0.5s ease;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-12px); }
+      75% { transform: translateX(12px); }
+    }
+    .sidebar {
+      transition: transform 0.5s ease;
+      background: rgba(10, 14, 43, 0.8);
+      backdrop-filter: blur(15px);
+    }
+    .sidebar-hidden {
+      transform: translateX(100%);
+    }
+    @media (max-width: 640px) {
+      body { font-size: 0.9rem; }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 85%;
+        z-index: 1000;
+      }
+      .container {
+        max-width: 100%;
+        padding: 0.5rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+      }
+      .cell {
+        font-size: 1.5rem;
+      }
+      #timer {
+        width: 70px;
+        height: 8px;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+      }
+    }
+    @media (min-width: 641px) and (max-width: 1024px) {
+      body { font-size: 1rem; }
+      .container {
+        max-width: 95%;
+        padding: 1rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+      }
+      .cell {
+        font-size: 2.5rem;
+      }
+      #timer {
+        width: 100px;
+      }
+    }
+    @media (min-width: 1025px) {
+      body { font-size: 1.1rem; }
+      h1 {
+        font-size: 2.5rem;
+      }
+      .cell {
+        font-size: 3.5rem;
+      }
+    }
+    .neumorphic-btn {
+      background: linear-gradient(145deg, #0a0e2b, #4c1d95);
+      box-shadow: 6px 6px 15px rgba(0, 0, 0, 0.6), -6px -6px 15px rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .neumorphic-btn:hover {
+      box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.6), inset -4px -4px 10px rgba(255, 255, 255, 0.15);
+    }
+    .neumorphic-btn::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent);
+      transform: translate(-50%, -50%) scale(0);
+      transition: transform 0.3s ease;
+    }
+    .neumorphic-btn:hover::after {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    body.light .neumorphic-btn {
+      background: linear-gradient(145deg, #e0e7ff, #a5b4fc);
+    }
+    body.neon .neumorphic-btn {
+      background: linear-gradient(145deg, #1e1b4b, #db2777);
+      box-shadow: 0 0 30px rgba(219, 39, 119, 0.7);
+    }
+    body.high-contrast .neumorphic-btn {
+      background: #fff;
+      color: #000;
+      border: 2px solid #000;
+    }
+    #timer {
+      width: 120px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    #timer-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 10s linear;
+    }
+    body.light #timer, body.neon #timer, body.high-contrast #timer {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    body.high-contrast #timer-bar {
+      background: #fff;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      transition: transform 0.3s ease;
+    }
+    .avatar:hover {
+      transform: scale(1.1);
+    }
+    .achievement {
+      animation: slideIn 0.7s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(25px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .score-animate {
+      animation: scorePop 0.6s ease;
+    }
+    @keyframes scorePop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+    #webgl-board {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -2;
+      opacity: 0.7;
+    }
+    .win-probability {
+      width: 100px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .win-probability-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.5s ease;
+    }
+    .floating {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+  <div class="custom-cursor" id="custom-cursor"></div>
+  <canvas id="particle-bg"></canvas>
+  <canvas id="webgl-board"></canvas>
+  <div class="container mx-auto p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6 relative z-10">
+    <div class="flex-1 relative">
+      <div class="flex justify-between items-center mb-4">
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight font-orbitron floating">Galactic Tic-Tac-Toe</h1>
+        <div class="flex gap-2">
+          <select id="themeSelect" class="px-2 py-1 neumorphic-btn text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm" aria-label="Select theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="neon">Neon</option>
+            <option value="high-contrast">High Contrast</option>
+          </select>
+          <button id="settings" class="px-2 py-1 neumorphic-btn text-white rounded-lg text-xs sm:text-sm" aria-label="Open settings">⚙️</button>
+          <button id="share" class="px-2 py-1 neumorphic-btn text-white rounded-lg text-xs sm:text-sm" aria-label="Share results">📤</button>
+        </div>
+      </div>
+      <div class="flex justify-between mb-4 items-center">
+        <div class="flex items-center gap-2">
+          <div id="xAvatar" class="avatar"></div>
+          <div>Score: <span id="scoreX" class="score-animate">0</span></div>
+          <div class="win-probability"><div id="xWinProb" class="win-probability-bar" style="width: 50%"></div></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="win-probability"><div id="oWinProb" class="win-probability-bar" style="width: 50%"></div></div>
+          <div>Score: <span id="scoreO" class="score-animate">0</span></div>
+          <div id="oAvatar" class="avatar"></div>
+        </div>
+      </div>
+      <div id="status" class="text-base sm:text-lg md:text-xl text-center mb-4 font-semibold flex justify-center items-center">
+        <span class="turn-indicator inline-block">Player <span id="currentPlayer">X</span>'s turn</span>
+      </div>
+      <div id="timer" class="mx-auto mb-4"><div id="timer-bar" style="width: 100%"></div></div>
+      <div id="error" class="text-red-500 text-center mb-4 hidden">Cell already taken!</div>
+      <div class="grid grid-cols-3 gap-1 sm:gap-2 md:gap-3 bg-gray-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-2xl relative" id="board" role="grid" aria-label="Tic-Tac-Toe board">
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="0" role="gridcell" tabindex="0" aria-label="Cell 1"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="1" role="gridcell" tabindex="0" aria-label="Cell 2"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="2" role="gridcell" tabindex="0" aria-label="Cell 3"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="3" role="gridcell" tabindex="0" aria-label="Cell 4"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="4" role="gridcell" tabindex="0" aria-label="Cell 5"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="5" role="gridcell" tabindex="0" aria-label="Cell 6"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="6" role="gridcell" tabindex="0" aria-label="Cell 7"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="7" role="gridcell" tabindex="0" aria-label="Cell 8"></div>
+        <div class="cell rounded-lg flex items-center justify-center text-xl sm:text-2xl md:text-3xl cursor-pointer aspect-square" data-index="8" role="gridcell" tabindex="0" aria-label="Cell 9"></div>
+      </div>
+      <div class="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
+        <button id="reset" class="px-3 py-2 neumorphic-btn text-white font-semibold rounded-lg w-full sm:w-auto text-xs sm:text-sm" aria-label="Reset game">Reset Game</button>
+        <button id="hint" class="px-3 py-2 neumorphic-btn text-white font-semibold rounded-lg w-full sm:w-auto text-xs sm:text-sm" aria-label="Get hint">Get Hint</button>
+      </div>
+    </div>
+    <div class="sidebar sm:w-56 md:w-64 bg-gray-800 p-3 sm:p-4 rounded-xl shadow-2xl sm:sidebar-hidden" id="sidebar">
+      <button id="toggleSidebar" class="sm:hidden mb-4 px-3 py-2 neumorphic-btn text-white rounded-lg w-full text-xs sm:text-sm" aria-label="Toggle sidebar">Show Stats</button>
+      <div id="stats" class="hidden sm:block">
+        <h3 class="text-base sm:text-lg font-semibold mb-2 font-orbitron">Galactic Analytics</h3>
+        <p>Total Games: <span id="totalGames">0</span></p>
+        <p>X Win Rate: <span id="xWinRate">0%</span></p>
+        <p>O Win Rate: <span id="oWinRate">0%</span></p>
+        <p>Move Efficiency: <span id="moveEfficiency">0%</span></p>
+        <h3 class="text-base sm:text-lg font-semibold mt-4 mb-2 font-orbitron">Badges</h3>
+        <ul id="achievements" class="text-xs sm:text-sm mb-4"></ul>
+        <h3 class="text-base sm:text-lg font-semibold mb-2 font-orbitron">Move History</h3>
+        <ul id="historyList" class="text-xs sm:text-sm"></ul>
+      </div>
+    </div>
+  </div>
+  <div id="modal" class="fixed inset-0 flex items-center justify-center hidden modal" role="dialog" aria-labelledby="modalMessage">
+    <div class="bg-gray-900 p-4 sm:p-6 rounded-lg text-center max-w-sm w-full">
+      <div id="winAvatar" class="mx-auto mb-4"></div>
+      <h2 id="modalMessage" class="text-base sm:text-xl md:text-2xl font-bold mb-4 font-orbitron"></h2>
+      <button id="replay" class="px-3 py-2 neumorphic-btn text-white rounded-lg text-xs sm:text-sm" aria-label="Play again">Play Again</button>
+    </div>
+  </div>
+  <div id="onboardingModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-85 hidden" role="dialog" aria-labelledby="onboardingTitle">
+    <div class="bg-gray-900 p-4 sm:p-6 rounded-lg text-center max-w-md w-full">
+      <div id="mentorAvatar" class="mx-auto mb-4"></div>
+      <h2 id="onboardingTitle" class="text-base sm:text-xl md:text-2xl font-bold mb-4 font-orbitron">Galactic Mission Brief</h2>
+      <div id="onboardingStep" class="mb-4 text-xs sm:text-sm"></div>
+      <button id="nextOnboarding" class="px-3 py-2 neumorphic-btn text-white rounded-lg text-xs sm:text-sm" aria-label="Next onboarding step">Next</button>
+    </div>
+  </div>
+  <div id="settingsModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-85 hidden" role="dialog" aria-labelledby="settingsTitle">
+    <div class="bg-gray-900 p-4 sm:p-6 rounded-lg text-center max-w-md w-full">
+      <h2 id="settingsTitle" class="text-base sm:text-xl md:text-2xl font-bold mb-4 font-orbitron">Command Center</h2>
+      <div class="text-left mb-4 text-xs sm:text-sm">
+        <label class="block mb-2">Board Color:</label>
+        <input type="color" id="boardColor" value="#ffffff" class="w-full mb-2">
+        <label class="block mb-2">X Avatar:</label>
+        <select id="xAvatarSelect" class="w-full p-2 rounded-lg bg-gray-700 text-white">
+          <option value="space1">Nebula Fighter</option>
+          <option value="space2">Quantum Star</option>
+        </select>
+        <label class="block mt-2 mb-2">O Avatar:</label>
+        <select id="oAvatarSelect" class="w-full p-2 rounded-lg bg-gray-700 text-white">
+          <option value="space3">Cosmo Drone</option>
+          <option value="space4">Astro Orb</option>
+        </select>
+        <label class="block mt-2 mb-2">Hint Difficulty:</label>
+        <input type="range" id="hintDifficulty" min="1" max="3" value="2" class="w-full">
+        <label class="block mt-2 mb-2">Font Size:</label>
+        <input type="range" id="fontSize" min="0.8" max="1.2" step="0.1" value="1" class="w-full">
+        <label class="block mt-2 mb-2">Haptic Feedback:</label>
+        <input type="range" id="hapticStrength" min="0" max="100" value="50" class="w-full">
+      </div>
+      <button id="saveSettings" class="px-3 py-2 neumorphic-btn text-white rounded-lg text-xs sm:text-sm" aria-label="Save settings">Save</button>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const cells = document.querySelectorAll('.cell');
+    const status = document.getElementById('status');
+    const currentPlayerSpan = document.getElementById('currentPlayer');
+    const resetButton = document.getElementById('reset');
+    const hintButton = document.getElementById('hint');
+    const toggleSidebarButton = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+    const stats = document.getElementById('stats');
+    const historyList = document.getElementById('historyList');
+    const scoreX = document.getElementById('scoreX');
+    const scoreO = document.getElementById('scoreO');
+    const totalGames = document.getElementById('totalGames');
+    const xWinRate = document.getElementById('xWinRate');
+    const oWinRate = document.getElementById('oWinRate');
+    const moveEfficiency = document.getElementById('moveEfficiency');
+    const achievements = document.getElementById('achievements');
+    const xWinProb = document.getElementById('xWinProb');
+    const oWinProb = document.getElementById('oWinProb');
+    const modal = document.getElementById('modal');
+    const modalMessage = document.getElementById('modalMessage');
+    const replayButton = document.getElementById('replay');
+    const error = document.getElementById('error');
+    const timerBar = document.getElementById('timer-bar');
+    const themeSelect = document.getElementById('themeSelect');
+    const settingsButton = document.getElementById('settings');
+    const shareButton = document.getElementById('share');
+    const settingsModal = document.getElementById('settingsModal');
+    const saveSettings = document.getElementById('saveSettings');
+    const boardColor = document.getElementById('boardColor');
+    const xAvatarSelect = document.getElementById('xAvatarSelect');
+    const oAvatarSelect = document.getElementById('oAvatarSelect');
+    const hintDifficulty = document.getElementById('hintDifficulty');
+    const fontSize = document.getElementById('fontSize');
+    const hapticStrength = document.getElementById('hapticStrength');
+    const onboardingModal = document.getElementById('onboardingModal');
+    const nextOnboarding = document.getElementById('nextOnboarding');
+    const onboardingStep = document.getElementById('onboardingStep');
+    const cursor = document.getElementById('custom-cursor');
+    let currentBoard = ['', '', '', '', '', '', '', '', ''];
+    let currentPlayer = 'X';
+    let gameActive = true;
+    let scores = JSON.parse(localStorage.getItem('ticTacToeScores')) || { X: 0, O: 0, draws: 0, total: 0 };
+    let moveHistory = [];
+    let movesMade = 0;
+    let achievementsList = JSON.parse(localStorage.getItem('ticTacToeAchievements')) || [];
+    let timerInterval;
+    let selectedCellIndex = 0;
+    let onboardingStage = 0;
+    let userPrefs = JSON.parse(localStorage.getItem('ticTacToePrefs')) || {
+      boardColor: '#ffffff',
+      xAvatar: 'space1',
+      oAvatar: 'space3',
+      hintDifficulty: 2,
+      fontSize: 1,
+      hapticStrength: 50
+    };
+
+    const xSvg = '<svg width="40" height="40" viewBox="0 0 24 24"><path d="M4 4l16 16m0-16L4 20" stroke="var(--primary)" stroke-width="3"/></svg>';
+    const oSvg = '<svg width="40" height="40" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="var(--secondary)" stroke-width="3" fill="none"/></svg>';
+
+    const winningCombinations = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+      [0, 4, 8], [2, 4, 6] // Diagonals
+    ];
+
+    // Lottie animations
+    const avatarPaths = {
+      space1: 'https://lottie.host/8f4c7e8b-6a7b-4e6b-b3f8-7b9e5b7e5a2a/9a2f3e4a.json',
+      space2: 'https://lottie.host/2c3f8d9a-1b3e-4f2d-9e5b-6a7b4e6b5a2a/4e6b3e4a.json',
+      space3: 'https://lottie.host/4e6b3e4a-1b3e-4f2d-9e5b-6a7b4e6b5a2a/8f4c7e8b.json',
+      space4: 'https://lottie.host/9a2f3e4a-6a7b-4e6b-b3f8-7b9e5b7e5a2a/2c3f8d9a.json',
+      mentor: 'https://lottie.host/5c7d9e8b-6a7b-4e6b-b3f8-7b9e5b7e5a2a/3d4e2f9a.json'
+    };
+    let xAvatarAnim = lottie.loadAnimation({
+      container: document.getElementById('xAvatar'),
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: avatarPaths[userPrefs.xAvatar]
+    });
+    let oAvatarAnim = lottie.loadAnimation({
+      container: document.getElementById('oAvatar'),
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: avatarPaths[userPrefs.oAvatar]
+    });
+    let mentorAvatarAnim;
+
+    // Sound effects (placeholders)
+    const clickSound = new Audio('data:audio/wav;base64,//MUxAA.......');
+    const errorSound = new Audio('data:audio/wav;base64,//MUxAA.......');
+    const winSound = new Audio('data:audio/wav;base64,//MUxAA.......');
+
+    // WebGL background
+    const webglCanvas = document.getElementById('webgl-board');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: webglCanvas, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.position.z = 5;
+    const geometry = new THREE.BoxGeometry(3, 3, 0.2);
+    const material = new THREE.MeshBasicMaterial({ color: 0x1e1b4b, transparent: true, opacity: 0.4, wireframe: true });
+    const grid = new THREE.Mesh(geometry, material);
+    scene.add(grid);
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 500;
+    const posArray = new Float32Array(particlesCount * 3);
+    for (let i = 0; i < particlesCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 10;
+    }
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMaterial = new THREE.PointsMaterial({ size: 0.02, color: 0x34d399 });
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+    function animateWebGL() {
+      requestAnimationFrame(animateWebGL);
+      grid.rotation.x += 0.005;
+      grid.rotation.y += 0.005;
+      particlesMesh.rotation.y += 0.003;
+      renderer.render(scene, camera);
+    }
+    animateWebGL();
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // Particle background
+    const canvas = document.getElementById('particle-bg');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const particles = [];
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 4 + 1;
+        this.speedX = Math.random() * 0.8 - 0.4;
+        this.speedY = Math.random() * 0.8 - 0.4;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.size > 0.2) this.size -= 0.03;
+      }
+      draw() {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    function initParticles() {
+      for (let i = 0; i < 80; i++) {
+        particles.push(new Particle());
+      }
+    }
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+        if (particles[i].size <= 0.2) {
+          particles.splice(i, 1);
+          i--;
+          particles.push(new Particle());
+        }
+      }
+      requestAnimationFrame(animateParticles);
+    }
+    initParticles();
+    animateParticles();
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // Custom cursor
+    document.addEventListener('mousemove', (e) => {
+      cursor.style.left = `${e.clientX}px`;
+      cursor.style.top = `${e.clientY}px`;
+    });
+
+    // Timer
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerBar.style.width = '100%';
+      let timeLeft = 10;
+      timerInterval = setInterval(() => {
+        timeLeft -= 0.1;
+        timerBar.style.width = `${(timeLeft / 10) * 100}%`;
+        if (timeLeft <= 0) {
+          currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+          currentPlayerSpan.textContent = currentPlayer;
+          status.classList.remove('turn-x', 'turn-o');
+          status.classList.add(currentPlayer === 'X' ? 'turn-x' : 'turn-o');
+          speak(`Player ${currentPlayer}'s turn`);
+          startTimer();
+        }
+      }, 100);
+    }
+
+    // Voice feedback
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.3;
+      utterance.volume = 0.8;
+      utterance.voice = speechSynthesis.getVoices().find(voice => voice.name.includes('Google')) || speechSynthesis.getVoices()[0];
+      speechSynthesis.speak(utterance);
+    }
+
+    // Voice commands
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const command = event.results[0][0].transcript.toLowerCase();
+        if (command.includes('place x in cell') || command.includes('place o in cell')) {
+          const cellNum = parseInt(command.match(/\d+/)[0]) - 1;
+          if (cellNum >= 0 && cellNum < 9) cells[cellNum].click();
+        } else if (command.includes('reset game')) {
+          resetButton.click();
+        } else if (command.includes('open settings')) {
+          settingsButton.click();
+        } else if (command.includes('get hint')) {
+          hintButton.click();
+        }
+      };
+      recognition.start();
+      setInterval(() => recognition.start(), 5000); // Restart recognition periodically
+    }
+
+    // Achievements
+    const achievementDefs = [
+      { id: 'win5', name: 'Galactic Overlord', condition: () => scores.X >= 5 || scores.O >= 5 },
+      { id: 'fast', name: 'Quantum Strike', condition: () => movesMade <= 5 && checkWin() },
+      { id: 'draw3', name: 'Cosmic Standoff', condition: () => scores.draws >= 3 },
+      { id: 'play10', name: 'Star Voyager', condition: () => scores.total >= 10 }
+    ];
+    function checkAchievements() {
+      achievementDefs.forEach(ach => {
+        if (ach.condition() && !achievementsList.includes(ach.id)) {
+          achievementsList.push(ach.id);
+          achievements.innerHTML += `<li class="achievement">${ach.name} Unlocked!</li>`;
+          localStorage.setItem('ticTacToeAchievements', JSON.stringify(achievementsList));
+          confetti({ particleCount: 50, spread: 60 });
+        }
+      });
+      achievements.innerHTML = achievementsList.map(id => `<li>${achievementDefs.find(a => a.id === id).name}</li>`).join('');
+    }
+
+    // Win probability
+    function updateWinProbability() {
+      let xScore = 0, oScore = 0;
+      for (let i = 0; i < 9; i++) {
+        if (currentBoard[i] === '') {
+          currentBoard[i] = 'X';
+          xScore += checkWinPlayer('X') ? 10 : minimax(currentBoard, 0, false);
+          currentBoard[i] = '';
+          currentBoard[i] = 'O';
+          oScore += checkWinPlayer('O') ? 10 : minimax(currentBoard, 0, true);
+          currentBoard[i] = '';
+        }
+      }
+      const total = xScore + oScore;
+      xWinProb.style.width = total ? `${(xScore / total) * 100}%` : '50%';
+      oWinProb.style.width = total ? `${(oScore / total) * 100}%` : '50%';
+    }
+
+    // Minimax for hints
+    function getHint() {
+      const difficulty = parseInt(userPrefs.hintDifficulty);
+      let bestScore = -Infinity;
+      let bestMove;
+      for (let i = 0; i < 9; i++) {
+        if (currentBoard[i] === '') {
+          currentBoard[i] = currentPlayer;
+          let score = minimax(currentBoard, 0, false);
+          currentBoard[i] = '';
+          if (difficulty === 1) score += Math.random() * 2 - 1; // Easy: Randomize slightly
+          else if (difficulty === 3) score *= 1.2; // Hard: Prioritize optimal moves
+          if (score > bestScore) {
+            bestScore = score;
+            bestMove = i;
+          }
+        }
+      }
+      if (bestMove !== undefined) {
+        cells[bestMove].style.background = 'rgba(34, 197, 94, 0.5)';
+        cells[bestMove].style.transform = 'perspective(1000px) translateZ(30px)';
+        setTimeout(() => {
+          cells[bestMove].style.background = '';
+          cells[bestMove].style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+        }, 1200);
+        speak(`Suggested move: Cell ${bestMove + 1}`);
+      }
+    }
+    function minimax(board, depth, isMaximizing) {
+      if (checkWinPlayer('X')) return -10 + depth;
+      if (checkWinPlayer('O')) return 10 - depth;
+      if (board.every(cell => cell !== '')) return 0;
+
+      if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === '') {
+            board[i] = 'O';
+            let score = minimax(board, depth + 1, false);
+            board[i] = '';
+            bestScore = Math.max(score, bestScore);
+          }
+        }
+        return bestScore;
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === '') {
+            board[i] = 'X';
+            let score = minimax(board, depth + 1, true);
+            board[i] = '';
+            bestScore = Math.min(score, bestScore);
+          }
+        }
+        return bestScore;
+      }
+    }
+    function checkWinPlayer(player) {
+      return winningCombinations.some(combination => {
+        return combination.every(index => currentBoard[index] === player);
+      });
+    }
+
+    // Game logic
+    function handleCellClick(event) {
+      const index = event.target.dataset.index;
+      if (currentBoard[index] !== '' || !gameActive) {
+        error.classList.remove('hidden');
+        board.classList.add('shake');
+        errorSound.play();
+        setTimeout(() => {
+          error.classList.add('hidden');
+          board.classList.remove('shake');
+        }, 1000);
+        return;
+      }
+
+      currentBoard[index] = currentPlayer;
+      event.target.innerHTML = currentPlayer === 'X' ? xSvg : oSvg;
+      event.target.classList.add(currentPlayer === 'X' ? 'x-symbol' : 'o-symbol');
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      movesMade++;
+      moveHistory.push(`Player ${currentPlayer} placed in cell ${parseInt(index) + 1}`);
+      updateHistory();
+      confetti({ particleCount: 40, spread: 50, startVelocity: 30, origin: { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight } });
+      updateWinProbability();
+      speak(`Player ${currentPlayer} placed in cell ${parseInt(index) + 1}`);
+
+      if (checkWin()) {
+        scores[currentPlayer]++;
+        scores.total++;
+        scoreX.textContent = scores.X;
+        scoreO.textContent = scores.O;
+        scoreX.classList.add('score-animate');
+        scoreO.classList.add('score-animate');
+        setTimeout(() => { scoreX.classList.remove('score-animate'); scoreO.classList.remove('score-animate'); }, 600);
+        totalGames.textContent = scores.total;
+        xWinRate.textContent = scores.total ? ((scores.X / scores.total) * 100).toFixed(1) + '%' : '0%';
+        oWinRate.textContent = scores.total ? ((scores.O / scores.total) * 100).toFixed(1) + '%' : '0%';
+        moveEfficiency.textContent = movesMade <= 5 ? '100%' : Math.round((5 / movesMade) * 100) + '%';
+        localStorage.setItem('ticTacToeScores', JSON.stringify(scores));
+        checkAchievements();
+        highlightWinningCells();
+        showModal(`Player ${currentPlayer} conquers the galaxy!`);
+        lottie.loadAnimation({
+          container: document.getElementById('winAvatar'),
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: avatarPaths[currentPlayer === 'X' ? userPrefs.xAvatar : userPrefs.oAvatar]
+        });
+        winSound.play();
+        speak(`Player ${currentPlayer} wins!`);
+        confetti({ particleCount: 300, spread: 120, origin: { y: 0.6 } });
+        gameActive = false;
+        clearInterval(timerInterval);
+        return;
+      }
+
+      if (currentBoard.every(cell => cell !== '')) {
+        scores.draws++;
+        scores.total++;
+        totalGames.textContent = scores.total;
+        xWinRate.textContent = scores.total ? ((scores.X / scores.total) * 100).toFixed(1) + '%' : '0%';
+        oWinRate.textContent = scores.total ? ((scores.O / scores.total) * 100).toFixed(1) + '%' : '0%';
+        moveEfficiency.textContent = movesMade <= 5 ? '100%' : Math.round((5 / movesMade) * 100) + '%';
+        localStorage.setItem('ticTacToeScores', JSON.stringify(scores));
+        checkAchievements();
+        showModal("A cosmic stalemate!");
+        speak("It's a draw!");
+        gameActive = false;
+        clearInterval(timerInterval);
+        return;
+      }
+
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      currentPlayerSpan.textContent = currentPlayer;
+      status.classList.remove('turn-x', 'turn-o');
+      status.classList.add(currentPlayer === 'X' ? 'turn-x' : 'turn-o');
+      speak(`Player ${currentPlayer}'s turn`);
+      startTimer();
+    }
+
+    function checkWin() {
+      return winningCombinations.some(combination => {
+        return combination.every(index => currentBoard[index] === currentPlayer);
+      });
+    }
+
+    function highlightWinningCells() {
+      const winningCombo = winningCombinations.find(combination => 
+        combination.every(index => currentBoard[index] === currentPlayer)
+      );
+      if (winningCombo) {
+        winningCombo.forEach(index => {
+          cells[index].classList.add('glow');
+          cells[index].style.transform = 'perspective(1000px) translateZ(35px)';
+        });
+      }
+    }
+
+    function showModal(message) {
+      modalMessage.textContent = message;
+      modal.classList.remove('hidden');
+    }
+
+    function resetGame() {
+      currentBoard = ['', '', '', '', '', '', '', '', ''];
+      currentPlayer = 'X';
+      gameActive = true;
+      movesMade = 0;
+      currentPlayerSpan.textContent = currentPlayer;
+      status.classList.remove('turn-x', 'turn-o');
+      status.classList.add('turn-x');
+      cells.forEach(cell => {
+        cell.innerHTML = '';
+        cell.classList.remove('x-symbol', 'o-symbol', 'glow');
+        cell.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+      });
+      modal.classList.add('hidden');
+      error.classList.add('hidden');
+      moveHistory = [];
+      updateHistory();
+      document.getElementById('winAvatar').innerHTML = '';
+      updateWinProbability();
+      speak(`Player ${currentPlayer}'s turn`);
+      startTimer();
+    }
+
+    function updateHistory() {
+      historyList.innerHTML = moveHistory.map(move => `<li class="animate-slideIn">${move}</li>`).join('');
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (!gameActive || modal.classList.contains('hidden') === false) return;
+      if (e.key === 'ArrowUp' && selectedCellIndex > 2) selectedCellIndex -= 3;
+      if (e.key === 'ArrowDown' && selectedCellIndex < 6) selectedCellIndex += 3;
+      if (e.key === 'ArrowLeft' && selectedCellIndex % 3 !== 0) selectedCellIndex -= 1;
+      if (e.key === 'ArrowRight' && selectedCellIndex % 3 !== 2) selectedCellIndex += 1;
+      if (e.key === 'Enter') cells[selectedCellIndex].click();
+      cells.forEach(cell => cell.tabIndex = -1);
+      cells[selectedCellIndex].tabIndex = 0;
+      cells[selectedCellIndex].focus();
+    });
+
+    // Gesture controls
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let scale = 1;
+    board.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+      }
+    });
+    board.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 1) {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+          if (deltaX > 0 && selectedCellIndex % 3 !== 2) selectedCellIndex += 1;
+          if (deltaX < 0 && selectedCellIndex % 3 !== 0) selectedCellIndex -= 1;
+        } else if (Math.abs(deltaY) > 50) {
+          if (deltaY > 0 && selectedCellIndex < 6) selectedCellIndex += 3;
+          if (deltaY < 0 && selectedCellIndex > 2) selectedCellIndex -= 3;
+        }
+        cells.forEach(cell => cell.tabIndex = -1);
+        cells[selectedCellIndex].tabIndex = 0;
+        cells[selectedCellIndex].focus();
+      }
+    });
+    board.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        scale = Math.min(Math.max(scale * (distance / touchStartDistance), 0.8), 1.2);
+        board.style.transform = `scale(${scale})`;
+        touchStartDistance = distance;
+      }
+    });
+    board.addEventListener('dbltap', () => resetButton.click());
+
+    // 3D tilt effect
+    cells.forEach(cell => {
+      cell.addEventListener('mousemove', (e) => {
+        const rect = cell.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        const rotateX = y / 5;
+        const rotateY = -x / 5;
+        cell.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+      });
+      cell.addEventListener('mouseleave', () => {
+        cell.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+      });
+    });
+
+    // Onboarding
+    const onboardingSteps = [
+      { text: 'Welcome, Commander! Place X or O to claim galactic sectors.', highlight: [board], avatar: true },
+      { text: 'Conquer three sectors in a row to win. Use hints for tactical advantage.', highlight: [hintButton] },
+      { text: 'Track your conquests and earn badges in the Command Log.', highlight: [toggleSidebarButton, sidebar] },
+      { text: 'Customize your ship in the Command Center. Ready for battle?', highlight: [settingsButton] }
+    ];
+    function showOnboarding() {
+      onboardingModal.classList.remove('hidden');
+      onboardingStage = 0;
+      updateOnboarding();
+      mentorAvatarAnim = lottie.loadAnimation({
+        container: document.getElementById('mentorAvatar'),
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: avatarPaths.mentor
+      });
+    }
+    function updateOnboarding() {
+      if (onboardingStage >= onboardingSteps.length) {
+        onboardingModal.classList.add('hidden');
+        mentorAvatarAnim.destroy();
+        return;
+      }
+      onboardingStep.innerHTML = `
+        <p class="mb-2">${onboardingSteps[onboardingStage].text}</p>
+        ${onboardingStage === 0 ? '<div class="flex justify-center gap-2 mb-4"><div class="avatar" id="onboardingX"></div><div class="avatar" id="onboardingO"></div></div>' : ''}
+      `;
+      if (onboardingStage === 0) {
+        lottie.loadAnimation({
+          container: document.getElementById('onboardingX'),
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: avatarPaths[userPrefs.xAvatar]
+        });
+        lottie.loadAnimation({
+          container: document.getElementById('onboardingO'),
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: avatarPaths[userPrefs.oAvatar]
+        });
+      }
+      nextOnboarding.textContent = onboardingStage === onboardingSteps.length - 1 ? 'Launch Battle!' : 'Next';
+      onboardingSteps[onboardingStage].highlight.forEach(el => {
+        el.style.transition = 'box-shadow 0.4s ease';
+        el.style.boxShadow = '0 0 30px var(--accent)';
+        setTimeout(() => el.style.boxShadow = '', 1200);
+      });
+    }
+
+    // Settings
+    boardColor.value = userPrefs.boardColor;
+    xAvatarSelect.value = userPrefs.xAvatar;
+    oAvatarSelect.value = userPrefs.oAvatar;
+    hintDifficulty.value = userPrefs.hintDifficulty;
+    fontSize.value = userPrefs.fontSize;
+    hapticStrength.value = userPrefs.hapticStrength;
+    function applySettings() {
+      userPrefs.boardColor = boardColor.value;
+      userPrefs.xAvatar = xAvatarSelect.value;
+      userPrefs.oAvatar = oAvatarSelect.value;
+      userPrefs.hintDifficulty = hintDifficulty.value;
+      userPrefs.fontSize = fontSize.value;
+      userPrefs.hapticStrength = hapticStrength.value;
+      localStorage.setItem('ticTacToePrefs', JSON.stringify(userPrefs));
+      cells.forEach(cell => cell.style.background = `rgba(${parseInt(userPrefs.boardColor.slice(1, 3), 16)}, ${parseInt(userPrefs.boardColor.slice(3, 5), 16)}, ${parseInt(userPrefs.boardColor.slice(5, 7), 16)}, 0.06)`);
+      xAvatarAnim.loadAnimation({ path: avatarPaths[userPrefs.xAvatar] });
+      oAvatarAnim.loadAnimation({ path: avatarPaths[userPrefs.oAvatar] });
+      document.body.style.fontSize = `${userPrefs.fontSize}rem`;
+    }
+
+    // Social sharing
+    shareButton.addEventListener('click', () => {
+      html2canvas(document.querySelector('.container')).then(canvas => {
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = 'tic-tac-toe-result.png';
+        link.click();
+        speak('Game result saved for sharing!');
+      });
+    });
+
+    // Event listeners
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    resetButton.addEventListener('click', () => { clickSound.play(); navigator.vibrate?.(userPrefs.hapticStrength); resetGame(); });
+    replayButton.addEventListener('click', () => { clickSound.play(); navigator.vibrate?.(userPrefs.hapticStrength); resetGame(); });
+    hintButton.addEventListener('click', () => { clickSound.play(); navigator.vibrate?.(userPrefs.hapticStrength); getHint(); });
+    toggleSidebarButton.addEventListener('click', () => {
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      stats.classList.toggle('hidden');
+      toggleSidebarButton.textContent = stats.classList.contains('hidden') ? 'Show Stats' : 'Hide Stats';
+    });
+    themeSelect.addEventListener('change', () => {
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      document.body.classList.remove('light', 'neon', 'high-contrast');
+      if (themeSelect.value !== 'dark') document.body.classList.add(themeSelect.value);
+      document.body.style.background = themeSelect.value === 'neon' ? 'linear-gradient(135deg, #1e1b4b, #db2777)' : 
+                                       themeSelect.value === 'light' ? 'linear-gradient(135deg, #e0e7ff, #a5b4fc)' :
+                                       themeSelect.value === 'high-contrast' ? '#000' : 'linear-gradient(135deg, #0a0e2b, #4c1d95)';
+    });
+    settingsButton.addEventListener('click', () => {
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      settingsModal.classList.remove('hidden');
+    });
+    saveSettings.addEventListener('click', () => {
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      applySettings();
+      settingsModal.classList.add('hidden');
+    });
+    nextOnboarding.addEventListener('click', () => {
+      clickSound.play();
+      navigator.vibrate?.(userPrefs.hapticStrength);
+      onboardingStage++;
+      updateOnboarding();
+    });
+
+    // Initialize
+    scoreX.textContent = scores.X;
+    scoreO.textContent = scores.O;
+    totalGames.textContent = scores.total;
+    xWinRate.textContent = scores.total ? ((scores.X / scores.total) * 100).toFixed(1) + '%' : '0%';
+    oWinRate.textContent = scores.total ? ((scores.O / scores.total) * 100).toFixed(1) + '%' : '0%';
+    moveEfficiency.textContent = '0%';
+    checkAchievements();
+    applySettings();
+    currentPlayerSpan.textContent = currentPlayer;
+    status.classList.add('turn-x');
+    startTimer();
+    updateWinProbability();
+    speak(`Player ${currentPlayer}'s turn`);
+    showOnboarding();
+
+    // PWA service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
